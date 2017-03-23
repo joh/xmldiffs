@@ -36,11 +36,16 @@ def indent(s, level):
 
 def write_sorted(stream, node, level=0):
     children = node.getchildren()
+    text = (node.text or "").strip()
+    tail = (node.tail or "").strip()
 
-    if children:
+    if children or text:
         children.sort(key=node_key)
 
         stream.write(indent("<" + node_str(node) + ">\n", level))
+
+        if text:
+            stream.write(indent(text + "\n", level))
 
         for child in children:
             write_sorted(stream, child, level + 1)
@@ -48,6 +53,9 @@ def write_sorted(stream, node, level=0):
         stream.write(indent("</" + node.tag + ">\n", level))
     else:
         stream.write(indent("<" + node_str(node) + "/>\n", level))
+
+    if tail:
+        stream.write(indent(tail + "\n", level))
 
 def xmldiffs(file1, file2, diffargs=["-u"]):
     tree = ET.parse(file1)
