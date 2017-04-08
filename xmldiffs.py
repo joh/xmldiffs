@@ -9,7 +9,7 @@ Any extra options are passed to the `diff' command.
 Copyright (c) 2017, Johannes H. Jensen.
 License: BSD, see LICENSE for more details.
 """
-from __future__ import print_function
+from __future__ import print_function, unicode_literals
 import sys
 import os
 import io
@@ -57,14 +57,24 @@ def write_sorted(stream, node, level=0):
     if tail:
         stream.write(indent(tail + "\n", level))
 
+if sys.version_info < (3, 0):
+    # Python 2
+    import codecs
+    def unicode_writer(fp):
+        return codecs.getwriter('utf-8')(fp)
+else:
+    # Python 3
+    def unicode_writer(fp):
+        return fp
+
 def xmldiffs(file1, file2, diffargs=["-u"]):
     tree = ET.parse(file1)
-    tmp1 = NamedTemporaryFile('w')
+    tmp1 = unicode_writer(NamedTemporaryFile('w'))
     write_sorted(tmp1, tree.getroot())
     tmp1.flush()
 
     tree = ET.parse(file2)
-    tmp2 = NamedTemporaryFile('w')
+    tmp2 = unicode_writer(NamedTemporaryFile('w'))
     write_sorted(tmp2, tree.getroot())
     tmp2.flush()
 
