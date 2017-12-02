@@ -83,7 +83,7 @@ def xmldiffs(file1, file2, diffargs=["-u"]):
     args += [ "--label", file1, "--label", file2 ]
     args += [ tmp1.name, tmp2.name ]
 
-    subprocess.call(args)
+    return subprocess.call(args)
 
 def print_usage(prog):
     print(__doc__.format(prog=prog).strip())
@@ -104,4 +104,4 @@ if __name__ == '__main__':
     file1 = args.pop(-1)
     diffargs = args if args else ["-u"]
 
-    xmldiffs(file1, file2, diffargs)
+    exit(xmldiffs(file1, file2, diffargs))
