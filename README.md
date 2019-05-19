@@ -1,5 +1,5 @@
 # xmldiffs
-Compare two XML files, ignoring element and attribute order.
+Compare XML files semantically, ignoring element and attribute order.
 
 Usage: `xmldiffs [OPTION] FILE1 FILE2`
 
