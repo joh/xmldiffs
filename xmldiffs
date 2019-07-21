@@ -42,15 +42,29 @@ def write_sorted(stream, node, level=0):
     if children or text:
         children.sort(key=node_key)
 
-        stream.write(indent("<" + node_str(node) + ">\n", level))
+        node_start = indent("<" + node_str(node) + ">", level)
+        stream.write(node_start)
 
-        if text:
-            stream.write(indent(text + "\n", level))
+        if text and len(children) == 0:
+            line_length = len(node_start) + len(text) + 1 + len(node.tag) + 1
+            if line_length < 120:
+                stream.write(text)
+                stream.write("</" + node.tag + ">\n")
+            else:
+                stream.write("\n")
+                stream.write(indent(text + "\n", level))
+                stream.write(indent("</" + node.tag + ">\n", level))
 
-        for child in children:
-            write_sorted(stream, child, level + 1)
+        else:
+            stream.write("\n")
+            if text:
+                stream.write(indent(text + "\n", level))
 
-        stream.write(indent("</" + node.tag + ">\n", level))
+            for child in children:
+                write_sorted(stream, child, level + 1)
+
+            stream.write(indent("</" + node.tag + ">\n", level))
+
     else:
         stream.write(indent("<" + node_str(node) + "/>\n", level))
 
