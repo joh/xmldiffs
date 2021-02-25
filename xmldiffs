@@ -82,20 +82,28 @@ else:
         return fp
 
 def xmldiffs(file1, file2, diffargs=["-u"]):
-    tree = ET.parse(file1)
-    tmp1 = unicode_writer(NamedTemporaryFile('w'))
-    write_sorted(tmp1, tree.getroot())
-    tmp1.flush()
+    try:
+        tree = ET.parse(file1)
+        tmp1 = unicode_writer(NamedTemporaryFile('w'))
+        write_sorted(tmp1, tree.getroot())
+        tmp1.flush()
+        actual = tmp1.name
+    except ET.ParseError:
+        actual = file1
 
-    tree = ET.parse(file2)
-    tmp2 = unicode_writer(NamedTemporaryFile('w'))
-    write_sorted(tmp2, tree.getroot())
-    tmp2.flush()
+    try:
+        tree = ET.parse(file2)
+        tmp2 = unicode_writer(NamedTemporaryFile('w'))
+        write_sorted(tmp2, tree.getroot())
+        tmp2.flush()
+        expected = tmp2.name
+    except ET.ParseError:
+        expected = file2
 
     args = [ "diff" ]
     args += diffargs
     args += [ "--label", file1, "--label", file2 ]
-    args += [ tmp1.name, tmp2.name ]
+    args += [ actual, expected ]
 
     return subprocess.call(args)
 
