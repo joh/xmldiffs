@@ -38,7 +38,7 @@ def sort_xml(node, level=0):
 
     """
     indent = "  "
-    children = node.getchildren()
+    children = list(node)
     text = (node.text or "").strip()
     tail = (node.tail or "").strip()
     out = []
