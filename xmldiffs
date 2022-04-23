@@ -1,16 +1,13 @@
 #!/usr/bin/env python
-"""
-Usage: {prog} [OPTION] FILE1 FILE2
-
-Compare two XML files, ignoring element and attribute order.
-
-Any extra options are passed to the `diff' command.
+"""Compare two XML files, ignoring element and attribute order
 
 Copyright (c) 2017, Johannes H. Jensen.
 License: BSD, see LICENSE for more details.
+
 """
 from __future__ import print_function, unicode_literals
 import argparse
+import difflib
 import sys
 import os
 import io
@@ -75,28 +72,25 @@ def sort_xml(node, level=0):
 
     return out
 
-if sys.version_info < (3, 0):
-    # Python 2
-    import codecs
-    def unicode_writer(fp):
-        return codecs.getwriter('utf-8')(fp)
-else:
-    # Python 3
-    def unicode_writer(fp):
-        return fp
+def write_list(stream, lines, encoding="utf-8"):
+    """Write a sequence of Unicode lines to a binary output stream
 
-def write_list(stream, lines):
-    """Write a sequence of lines to an output stream"""
-    stream.write("".join(lines))
+    @param stream: An open file-like object.
+    @param lines: A sequence of binary strings to write. Must include newlines.
+    @param encoding: Optional character encoding. (Default: UTF-8.)
+
+    """
+    stream.write("".join(lines).encode("utf-8"))
 
 def xmldiffs(file1, file2, diffargs=["-u"]):
+    """Execute the C{diff} command on two files, return I{stdout} contents"""
     tree = ET.parse(file1)
-    tmp1 = unicode_writer(NamedTemporaryFile('w'))
+    tmp1 = NamedTemporaryFile()
     write_list(tmp1, sort_xml(tree.getroot()))
     tmp1.flush()
 
     tree = ET.parse(file2)
-    tmp2 = unicode_writer(NamedTemporaryFile('w'))
+    tmp2 = NamedTemporaryFile()
     write_list(tmp2, sort_xml(tree.getroot()))
     tmp2.flush()
 
@@ -111,9 +105,9 @@ def parse_commandline(args):
     """Return command options filled from command line
 
     @rtype: C{argparse.Namespace}
-    @return: An object with two attributes:
+    @return: An object with the following attributes:
 
-        file - a tuple containing two file names
+        file - a tuple containing two file names.
         diffargs - additional options from the command line.
 
     """
