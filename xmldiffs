@@ -37,7 +37,7 @@ def sort_xml(node, level=0):
     @param level: text indentation level.
 
     """
-    indent = "  "
+    indent = "  " * level
     children = list(node)
     text = (node.text or "").strip()
     tail = (node.tail or "").strip()
@@ -53,12 +53,12 @@ def sort_xml(node, level=0):
             if line_length < 120:
                 out.append("%s%s</%s>\n" % (node_start, text, node.tag))
             else:
-                out.append(node_start)
+                out.append(node_start + "\n")
                 out.append("%s%s\n" % (indent, text))
                 out.append("%s</%s>\n" % (indent, node.tag))
 
         else:
-            out.append(node_start)
+            out.append(node_start + "\n")
             if text:
                 out.append("%s%s\n" % (indent, text))
             for child in sorted(children, key=node_key):
@@ -109,21 +109,34 @@ def parse_commandline(args):
     @return: An object with the following attributes:
 
         file - a tuple containing two file names.
+        mode - diff type: "external", "context", "ndiff", "unified", "html".
         diffargs - additional options from the command line.
 
     """
     parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        formatter_class=argparse.RawTextHelpFormatter,
         description=dedent("""\
             Compare two XML files, ignoring element and attribute order."""),
         epilog=dedent("""\
-            Any extra options are passed to the `diff' command.
+            Any extra options are passed to the `diff' command if it is used to compare the texts.
+            When the output is in one of the primary formats, extra options are ignored.
 
             Copyright (c) 2017, Johannes H. Jensen.
             License: BSD, see LICENSE for more details.
             """))
     parser.add_argument("-o", "--output", metavar="OUT", default="-",
-        help="name of the output file (default: stdout)")
+        help="Name of the output file (default: stdout)")
+    grp = parser.add_mutually_exclusive_group()
+    grp.add_argument("-d", "--diff", dest="mode",
+        action="store_const", const="external",
+        help="Run the `diff' program to compare normalized texts (default)")
+    grp.add_argument("-x", "--xml", dest="mode",
+        action="store_const", const="xml", help=dedent("""\
+        Write the normalized XML text to a file.
+        In this case the `--output' option is ignored,
+        and the output file is always the second name
+        from the command line.
+        """))
     parser.add_argument("file", nargs=2, metavar="FILE",
         help="an xml file to compare")
     (options, diffargs) = parser.parse_known_args(args)
@@ -132,7 +145,12 @@ def parse_commandline(args):
 
 def run(args):
     options = parse_commandline(args[1:])
-    txt = xmldiffs(*options.file, diffargs=options.diffargs or ["-u"])
+    if options.mode == "xml":
+        tree = ET.parse(options.file[0])
+        txt = "".join(sort_xml(tree.getroot())).encode("utf-8")
+        options.output = options.file[1]
+    else:
+        txt = xmldiffs(*options.file, diffargs=options.diffargs or ["-u"])
     if options.output == "-":
         if sys.version_info[0] < 3:
             out = sys.stdout
