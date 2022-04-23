@@ -33,45 +33,47 @@ def node_str(n):
 def node_key(n):
     return node_str(n)
 
-def indent(s, level):
-    return "  " * level + s
+def sort_xml(node, level=0):
+    """Return a list of text lines from an I{ElementTree} node
 
-def write_sorted(stream, node, level=0):
+    @param node: an C{Element} object containing XML data.
+    @param level: text indentation level.
+
+    """
+    indent = "  "
     children = node.getchildren()
     text = (node.text or "").strip()
     tail = (node.tail or "").strip()
+    out = []
 
     if children or text:
         children.sort(key=node_key)
 
-        node_start = indent("<" + node_str(node) + ">", level)
-        stream.write(node_start)
+        node_start = "%s<%s>" % (indent, node_str(node))
 
         if text and len(children) == 0:
             line_length = len(node_start) + len(text) + 1 + len(node.tag) + 1
             if line_length < 120:
-                stream.write(text)
-                stream.write("</" + node.tag + ">\n")
+                out.append("%s%s</%s>\n" % (node_start, text, node.tag))
             else:
-                stream.write("\n")
-                stream.write(indent(text + "\n", level))
-                stream.write(indent("</" + node.tag + ">\n", level))
+                out.append(node_start)
+                out.append("%s%s\n" % (indent, text))
+                out.append("%s</%s>\n" % (indent, node.tag))
 
         else:
-            stream.write("\n")
+            out.append(node_start)
             if text:
-                stream.write(indent(text + "\n", level))
-
-            for child in children:
-                write_sorted(stream, child, level + 1)
-
-            stream.write(indent("</" + node.tag + ">\n", level))
-
+                out.append("%s%s\n" % (indent, text))
+            for child in sorted(children, key=node_key):
+                out.extend(sort_xml(child, level+1))
+            out.append("%s</%s>\n" % (indent, node.tag))
     else:
-        stream.write(indent("<" + node_str(node) + "/>\n", level))
+        out.append("%s<%s/>\n" % (indent, node_str(node)))
 
     if tail:
-        stream.write(indent(tail + "\n", level))
+        out.append("%s%s\n" % (indent, tail))
+
+    return out
 
 if sys.version_info < (3, 0):
     # Python 2
@@ -83,15 +85,19 @@ else:
     def unicode_writer(fp):
         return fp
 
+def write_list(stream, lines):
+    """Write a sequence of lines to an output stream"""
+    stream.write("".join(lines))
+
 def xmldiffs(file1, file2, diffargs=["-u"]):
     tree = ET.parse(file1)
     tmp1 = unicode_writer(NamedTemporaryFile('w'))
-    write_sorted(tmp1, tree.getroot())
+    write_list(tmp1, sort_xml(tree.getroot()))
     tmp1.flush()
 
     tree = ET.parse(file2)
     tmp2 = unicode_writer(NamedTemporaryFile('w'))
-    write_sorted(tmp2, tree.getroot())
+    write_list(tmp2, sort_xml(tree.getroot()))
     tmp2.flush()
 
     args = [ "diff" ]
