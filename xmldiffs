@@ -102,6 +102,46 @@ def xmldiffs(file1, file2, diffargs=["-u"]):
     proc = subprocess.Popen(args, stdout=subprocess.PIPE)
     return proc.communicate()[0]
 
+def context_diff(file1, file2, ctxlines):
+    """Return a context diff text"""
+    x1 = ET.parse(file1)
+    x2 = ET.parse(file2)
+    lines = difflib.context_diff(
+        sort_xml(x1.getroot()), sort_xml(x2.getroot()),
+        file1, file2, n=(ctxlines or 3))
+    return "".join(lines)
+
+def ndiff(file1, file2):
+    """Return a Differ-style delta text"""
+    x1 = ET.parse(file1)
+    x2 = ET.parse(file2)
+    lines = difflib.ndiff(sort_xml(x1.getroot()), sort_xml(x2.getroot()))
+    return "".join(lines)
+
+def unidiff(file1, file2, ctxlines):
+    """Return a unified diff text"""
+    x1 = ET.parse(file1)
+    x2 = ET.parse(file2)
+    lines = difflib.unified_diff(
+        sort_xml(x1.getroot()), sort_xml(x2.getroot()),
+        file1, file2, n=(ctxlines or 3))
+    return "".join(lines)
+
+def html_diff(file1, file2, ctxlines):
+    """Return a unified diff text"""
+    x1 = ET.parse(file1)
+    x2 = ET.parse(file2)
+    diff = difflib.HtmlDiff()
+    args = dict(
+        fromlines=sort_xml(x1.getroot()),
+        tolines=sort_xml(x2.getroot()),
+        fromdesc=file1,
+        todesc=file2)
+    if ctxlines:
+        args["context"] = True
+        args["numlines"] = ctxlines
+    return diff.make_file(**args)
+
 def parse_commandline(args):
     """Return command options filled from command line
 
@@ -114,7 +154,7 @@ def parse_commandline(args):
 
     """
     parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawTextHelpFormatter,
+        formatter_class=argparse.RawTextHelpFormatter, add_help=False,
         description=dedent("""\
             Compare two XML files, ignoring element and attribute order."""),
         epilog=dedent("""\
@@ -124,12 +164,24 @@ def parse_commandline(args):
             Copyright (c) 2017, Johannes H. Jensen.
             License: BSD, see LICENSE for more details.
             """))
-    parser.add_argument("-o", "--output", metavar="OUT", default="-",
-        help="Name of the output file (default: stdout)")
+    parser.add_argument("-h", "--help", action='help',
+        default=argparse.SUPPRESS, help="Show this help message and exit.")
     grp = parser.add_mutually_exclusive_group()
     grp.add_argument("-d", "--diff", dest="mode",
         action="store_const", const="external",
-        help="Run the `diff' program to compare normalized texts (default)")
+        help="Run the `diff' program to compare normalized texts.")
+    grp.add_argument("-c", "--context", dest="mode",
+        action="store_const", const="context",
+        help="Output context diff text.")
+    grp.add_argument("-u", "--unified", dest="mode",
+        action="store_const", const="unified",
+        help="Output unified diff text. This is the default mode.")
+    grp.add_argument("-n", "--ndiff", dest="mode",
+        action="store_const", const="ndiff",
+        help="Output Differ-style delta.")
+    grp.add_argument("-t", "--html", dest="mode",
+        action="store_const", const="html",
+        help="Output HTML page showing line by line differences.")
     grp.add_argument("-x", "--xml", dest="mode",
         action="store_const", const="xml", help=dedent("""\
         Write the normalized XML text to a file.
@@ -137,25 +189,48 @@ def parse_commandline(args):
         and the output file is always the second name
         from the command line.
         """))
+    parser.add_argument("-l", "--lines", metavar="NUM", type=int,
+        help=dedent("""\
+        Number of the context lines for unified, context, and html diffs.
+        For unified and context diffs, the value defaults to 3.
+        For html diff, the value defaults to None, which produces
+        full output lines.  Pass an integer to produce context lines.
+        """))
+    parser.add_argument("-o", "--output", metavar="OUT", default="-",
+        help="Name of the output file (default: stdout).")
     parser.add_argument("file", nargs=2, metavar="FILE",
-        help="an xml file to compare")
+        help="An xml file to compare.")
     (options, diffargs) = parser.parse_known_args(args)
     options.diffargs = diffargs
     return options
 
 def run(args):
     options = parse_commandline(args[1:])
-    if options.mode == "xml":
+    mode = options.mode
+    if mode == "xml":
         tree = ET.parse(options.file[0])
         txt = "".join(sort_xml(tree.getroot())).encode("utf-8")
         options.output = options.file[1]
-    else:
+    elif mode == "external":
         txt = xmldiffs(*options.file, diffargs=options.diffargs or ["-u"])
+    elif mode == "html":
+        txt = html_diff(*options.file, ctxlines=options.lines)
+    elif mode == "context":
+        txt = context_diff(*options.file, ctxlines=options.lines)
+    elif mode == "ndiff":
+        txt = ndiff(*options.file)
+    else:
+        txt = unidiff(*options.file, ctxlines=options.lines)
+    if sys.version_info[0] < 3:
+        out = sys.stdout
+        unicode_type = unicode
+    else:
+        out = sys.stdout.buffer
+        unicode_type = str
+    # All methods except "external" produce a Unicode string
+    if isinstance(txt, unicode_type):
+        txt = txt.encode("utf-8")
     if options.output == "-":
-        if sys.version_info[0] < 3:
-            out = sys.stdout
-        else:
-            out = sys.stdout.buffer
         out.write(txt)
     else:
         with open(options.output, "wb") as out:
