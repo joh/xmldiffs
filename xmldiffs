@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Compare two XML files, ignoring element and attribute order
 
-Copyright (c) 2017, Johannes H. Jensen.
+Copyright (c) 2017-2022, xmldiffs developers.
 License: BSD, see LICENSE for more details.
 
 """
@@ -161,7 +161,7 @@ def parse_commandline(args):
             Any extra options are passed to the `diff' command if it is used to compare the texts.
             When the output is in one of the primary formats, extra options are ignored.
 
-            Copyright (c) 2017, Johannes H. Jensen.
+            Copyright (c) 2017-2022, xmldiffs developers.
             License: BSD, see LICENSE for more details.
             """))
     parser.add_argument("-h", "--help", action='help',
